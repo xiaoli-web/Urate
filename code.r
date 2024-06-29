@@ -1,8 +1,7 @@
 # Code for the analysis and plot for the study: Sex-specific epigenetic signatures of circulating urate and its increase after BCG vaccination
-
 # Quality control of the DNA methylation data was described in paper: https://github.com/CiiM-Bioinformatics-group/BCG_methylation_project
-
 # Below is the code for perfomeing epigenome-wide association analysis and plotting
+
 # Load required libraries
 library(minfi)
 library(ggplot2)
@@ -23,9 +22,9 @@ library(normentR)
 library(readxl)
 library(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
 
+
 # Load M-values and perform outlier removal
 M.val <- readRDS("mVals_filtered.rds")
-
 removeOutliers <- function(probes) {
   require(matrixStats)
   if (nrow(probes) < ncol(probes)) warning("expecting probes as rows (long dataset)")
@@ -42,13 +41,12 @@ removeOutliers <- function(probes) {
   Log <- data.frame(initial_NAs, removed_lower, removed_upper, N_for_probe)
   return(list(probes, Log))
 }
-
 system.time(OutlierResults <- removeOutliers(M.val))
 M.val <- OutlierResults[[1]]
 Log <- OutlierResults[[2]]
-
 save(M.val, file = "input/mVals_filtered_trimmed.Rdata")
 save(Log, file = "input/mVals_filtered_trimmed_log.Rdata")
+
 
 # Load required data for EWAS
 load("input/m1.trim.rdata")
@@ -128,10 +126,8 @@ result[, probeID := probelistnamesB]
 setnames(result, c("BETA", "SE", "P_VAL", "probeID"))
 setcolorder(result, c("probeID", "BETA", "SE", "P_VAL"))
 result$padj <- p.adjust(result$P_VAL, method = "BH")
-
 lambda <- median(qchisq(as.numeric(as.character(result$P_VAL)), df = 1, lower.tail = FALSE), na.rm = TRUE) / qchisq(0.5, 1)
 lambda 
-
 write.xlsx(result, file = "output/v1_m4_interaction.rlm.xlsx")
 
 # Sex-stratified analysis (Female)
@@ -139,15 +135,12 @@ female <- pdv1 %>% filter(sex == "female") %>% pull(id)
 uv1.female <- uv1[which(uv1$id %in% female), ]
 pdv1 <- pdv1 %>% filter(sex == "female")
 mv1.t <- mv1.t[which(paste0("X", rownames(mv1.t)) %in% uv1.female$id2), ]
-
 pdv1$Sample_Plate <- droplevels(pdv1$Sample_Plate)
 str(pdv1)
-
 sum(is.na(uv1))
 sum(is.na(mv1.t))
 sum(paste0("X", rownames(mv1.t)) == pdv1$id2)
 sum(paste0("X", rownames(mv1.t)) == uv1.female$id2)
-
 RLMtest_sex_stratified <- function(meth_matrix, methcol, urate, age, plate, CD8, CD4, NK, B, Mono, Neu, smoker) {
   mod <- try(rlm(meth_matrix[, methcol] ~ urate + age + plate + CD8 + CD4 + NK + B + Mono + Neu + smoker, maxit = 200))
   cf <- try(coeftest(mod, vcov = vcovHC(mod, type = "HC0")))
@@ -160,7 +153,6 @@ RLMtest_sex_stratified <- function(meth_matrix, methcol, urate, age, plate, CD8,
     cf[2, c("Estimate", "Std. Error", "Pr(>|z|)")]
   }
 }
-
 res <- lapply(setNames(seq_len(ncol(mv1.t)), dimnames(mv1.t)[[2]]), RLMtest_sex_stratified, 
               meth_matrix = mv1.t, urate = uv1.female$con, age = pdv1$age, 
               plate = pdv1$Sample_Plate, CD8 = pdv1$CD8T, CD4 = pdv1$CD4T, 
@@ -177,7 +169,6 @@ result[, probeID := probelistnamesB]
 setnames(result, c("BETA", "SE", "P_VAL", "probeID"))
 setcolorder(result, c("probeID", "BETA", "SE", "P_VAL"))
 result$padj <- p.adjust(result$P_VAL, method = "BH")
-
 write.xlsx(result, file = "output/rlm_v1_female_mval_trimmed_methy_dependent_smoker.xlsx")
 
 # Manhattan plot
@@ -226,8 +217,4 @@ manhplot <- ggplot() +
 pdf("plot/mahantan_plot.pdf", width = 7, height = 3.5)
 print(manhplot)
 dev.off()
-
-
-
-
 
